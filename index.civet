@@ -1,0 +1,401 @@
+{ SVG, type Svg, type G, type Line } from @svgdotjs/svg.js
+{ urlFor, byName } from ./pokedex.civet
+
+xSpace .= 80
+ySpace .= 100
+nodeSize .= 100
+animDelay .= 1000
+
+class SpriteNode
+  key: number?
+  parent: SpriteNode?
+  left: SpriteNode?
+  right: SpriteNode?
+  size: number?
+  height: number?
+  parentLine: Line?
+  loaded: Promise<void>?
+
+  x: number?
+  y: number?
+  g: G
+
+  @(@g: G, @parent?: SpriteNode, key?: number?)
+    @setKey key
+  computeHeight(): number
+    @height =
+      if @key?
+        1 + Math.max @left!.computeHeight(), @right!.computeHeight()
+      else
+        0
+  computeSize(): number
+    @size =
+      if @key?
+        @left!.computeSize() + 1 + @right!.computeSize()
+      else
+        0
+  inorder(): Generator<SpriteNode>
+    return unless @key?
+    yield* @left!.inorder()
+    yield @
+    yield* @right!.inorder()
+  preorder(): Generator<SpriteNode>
+    return unless @key?
+    yield @
+    yield* @left!.preorder()
+    yield* @right!.preorder()
+  postorder(): Generator<SpriteNode>
+    return unless @key?
+    yield* @left!.postorder()
+    yield* @right!.postorder()
+    yield @
+  ancestors(): SpriteNode[]
+    node: SpriteNode .= @
+    while node.parent?
+      node = node.parent!
+
+  // Main node rendering
+  setKey(@key: number?): void
+    @g.clear()
+    @parentLine = undefined
+    return unless @key?
+    @parentLine = @g.line 0, 0, 0, 0
+    let loadComplete: =>
+    @loaded = new Promise (loadComplete =)
+    @g.image urlFor(@key), loadComplete!
+    .size nodeSize, nodeSize
+    .center 0, 0
+    @loaded.then =>
+      @g.text @key!.toString()
+      .attr 'x', 0
+      .attr 'y', nodeSize/2
+    @updateParentLine()
+  setParent(@parent: SpriteNode?): void
+    @updateParentLine()
+  updateParentLine(): void
+    if @parent?
+      @parentLine!.plot 0, 0, @parent.x! - @x!, @parent.y! - @y!
+    else
+      @parentLine!.plot 0, 0, 0, 0
+  addClass(className: string): void
+    @g.addClass className
+
+  // Call computeSize() before this
+  layout(x: number, y: number): void
+    return unless @key?
+    @move x, y
+    @updateParentLine()
+    @left!.layout
+      x - xSpace * (@left!.size! - (@left!.left?.size ?? 0))
+      y + ySpace
+    @right!.layout
+      x + xSpace * (@right!.size! - (@right!.right?.size ?? 0))
+      y + ySpace
+
+  move(@x: number, @y: number)
+    @g.transform
+      translateX: @x
+      translateY: @y
+    @
+  animMove(@x: number, @y: number, newParent?: SpriteNode??): Promise<void>
+    new Promise (done) =>
+      old := @parentLine?.plot()[1]
+      @g.animate(animDelay).transform
+        translateX: @x
+        translateY: @y
+      .during (t: number) =>
+        return if newParent is null
+        if @parentLine? and (newParent? or @parent?)
+          trans .= @g.transform()
+          transParent .= (newParent ?? @parent)!.g.transform()
+          @parentLine!.plot 0, 0,
+            (1-t) * old![0] + t * (transParent.translateX! - trans.translateX!)
+            (1-t) * old![1] + t * (transParent.translateY! - trans.translateY!)
+      .after =>
+        done()
+  animParent(@parent: SpriteNode): Promise<void>
+    @animMove @x!, @y!, @parent
+  remove(): void
+    @g.remove()
+  fadeOut(): Promise<void>
+    new Promise (done) =>
+      @g.animate(animDelay)
+      .opacity 0
+      .after =>
+        @remove()
+        done()
+  eject(newKey: number): SpriteNode
+    key .= @key
+    @setKey newKey
+    new SpriteNode @g.root().group(), undefined, key
+    .move @x!, @y!
+
+class SpriteTree
+  svg: Svg
+  root: SpriteNode
+
+  @(@svg: Svg)
+    @root = @newNode()
+  newNode(parent?: SpriteNode, key?: number?)
+    new SpriteNode @svg.group(), parent, key
+  clear(): void
+    @svg.clear()
+    @root = @newNode()
+  empty(): boolean
+    not @root.key?
+
+  draw(anim?: boolean): void
+    @root.computeSize()
+    @root.computeHeight()
+    @root.layout @root.x ?? 0, @root.y ?? 0
+    xMin .= @root.x! - (@root.left?.size ?? 0) * xSpace - nodeSize
+    xMax .= @root.x! + (@root.right?.size ?? 0) * xSpace + nodeSize
+    yMin .= @root.y! - nodeSize
+    yMax .= @root.y! + @root.height! * ySpace + nodeSize
+    width .= xMax - xMin
+    height .= yMax - yMin
+    oldBox .= @svg.viewbox()
+    if anim and not (xMin is oldBox.x and yMin is oldBox.y and width is oldBox.w and height is oldBox.h)
+      @root.g.animate animDelay
+      .during (t: number) =>
+        @svg.viewbox
+          (1-t) * oldBox.x + t * xMin
+          (1-t) * oldBox.y + t * yMin
+          (1-t) * oldBox.w + t * width
+          (1-t) * oldBox.h + t * height
+      .after => @svg.viewbox xMin, yMin, width, height
+    else
+      @svg.viewbox xMin, yMin, width, height
+    // Draw nodes in postorder to ensure lines to parent are below parent
+    for node of @root.postorder()
+      @svg.add node.g
+
+  find(key: number): SpriteNode
+    node .= @root
+    loop
+      if not node.key? or key is node.key
+        return node
+      else if key < node.key
+        node = node.left!
+      else
+        node = node.right!
+
+  animFind(key: number)
+    @animInsert key, true
+
+  animInsert(key: number, find = false, del?: boolean): Promise<{node: SpriteNode, newNode: SpriteNode}?>
+    node .= @find key
+    if @empty()
+      unless find
+        node.left = @newNode node
+        node.right = @newNode node
+        node.setKey key
+        @draw()
+      return
+
+    //timeline .= new SVG.Timeline()
+
+    newNode .= @newNode undefined, key
+    newNode.addClass 'bad' if del
+    newNode.move @root.x!, -nodeSize
+    await newNode.loaded
+    ancestors .= node.ancestors()
+    ancestors.reverse()
+    // animate move sprite to parent
+    for ancestor of ancestors
+      await newNode.animMove ancestor.x!, ancestor.y!
+
+    if not node.key? // new key
+      unless find
+        node.left = @newNode node
+        node.right = @newNode node
+        node.setKey newNode.key
+        node.move newNode.x!, newNode.y!
+      parent := node.parent!
+      newX .=
+        if node is parent.left
+          parent.x! - xSpace / 2
+        else
+          parent.x! + xSpace / 2
+      newY .= parent.y! + ySpace
+      if find
+        await newNode.animMove newX, newY
+        await newNode.fadeOut()
+      else
+        await.all [
+          node.animMove newX, newY
+          newNode.animMove newX, newY
+          ...for n of @root.inorder() // animate make room for new node
+            continue if n is node
+            direction .= Math.sign n.key! - key
+            n.animMove n.x! + direction * xSpace / 2, n.y!
+        ]
+        newNode.remove()
+    else // replace
+      await newNode.animMove node.x!, node.y!
+      if del
+        return {node, newNode}
+      node.setKey key
+      newNode.remove()
+    @draw not find
+    return
+
+  animDelete(key: number)
+    //unless {node, newNode} .= await @animInsert key, true, true
+    return unless ref .= await @animInsert key, true, true
+    {node, newNode} .= ref
+    node.setKey undefined
+
+    function swap(other: SpriteNode)
+      key .= node.key
+      node.setKey other.key
+      other.setKey key
+
+    loop // swap down until empty subtree
+      node = node!
+      start .= node.{x!,y!}
+      if node.left?.key? // swap with predecessor
+        pred: SpriteNode .= node.left
+        await newNode.animMove pred.x!, pred.y!
+        while pred.right?.key?
+          pred = pred.right
+          await newNode.animMove pred.x!, pred.y!
+        eject .= pred.eject key
+        await eject.animMove start.x, start.y
+        node.setKey eject.key
+        eject.remove()
+        node = pred
+      else if node.right?.key? // swap with successor
+        succ: SpriteNode .= node.right
+        await newNode.animMove succ.x!, succ.y!
+        while succ.left?.key?
+          succ = succ.left
+          await newNode.animMove succ.x!, succ.y!
+        eject .= succ.eject key
+        await eject.animMove start.x, start.y
+        node.setKey eject.key
+        eject.remove()
+        node = succ
+      else // delete leaf
+        await [
+          node.fadeOut()
+          newNode.fadeOut()
+        ]
+        node.left = node.right = undefined
+        node.setKey undefined
+        await.all
+          for n of @root.inorder() // animate collapse space
+            continue if n is node
+            direction .= Math.sign n.x! - node.x!
+            n.animMove n.x! - direction * xSpace / 2, n.y!
+        @draw true
+        return
+
+  animRotate(key: number, direction: 'left' | 'right')
+    opposite: 'left' | 'right' .= 'left'
+    if direction is 'left'
+      opposite = 'right'
+    else
+      direction = 'right'
+    node .= @find key
+    return unless node.key?
+
+    child .= node[opposite]
+    unless child?.key?
+      sign .= if direction is 'left' then 1 else -1
+      flash .= @svg.line node.x!, node.y!, node.x! + sign * xSpace, node.y! + ySpace
+      .back()
+      .addClass 'bad'
+      flash.animate animDelay
+      .opacity 0
+      .after => flash.remove()
+      return
+
+    unless node.parent?
+      @root = child
+    else
+      if key < node.parent.key!
+        node.parent.left = child
+      else
+        node.parent.right = child
+        /*
+      schedule_morph_line(
+              @canvas,
+              child.tags[1],
+              interpolate_int_point(node.parent.x, node.parent.y, node.parent.x, node.parent.y),
+              interpolate_int_point(node.x, node.y, child.x, node.y),
+              0,
+              anim_delay)
+              */
+    nodeY := node.y!
+    await.all [
+      if node.parent?
+        console.log 'child', child.key, 'parent', node.parent.key
+        child.parentLine!.animate animDelay
+        .plot
+          child.x! - node.x!, 0
+          node.parent.x! - child.x!, node.parent.y! - child.y!
+      node.animMove node.x!, child.y!
+      child.animMove child.x!, nodeY, null
+      ...for n of child[opposite]!.inorder()
+        n.animMove n.x!, n.y! - ySpace
+      ...for n of node[direction]!.inorder()
+        n.animMove n.x!, n.y! + ySpace//, if n is child[opposite] then node
+      child[direction]?.animParent node
+    ]
+    child.parent = node.parent
+    node[opposite] = child[direction]
+    child[direction] = node
+    node.parent = child
+    node[opposite]!.parent = node
+    @draw true
+
+function gui(): void
+  svg := SVG().addTo '#app'
+  T := new SpriteTree svg
+  if true
+    T.root.setKey 15
+    T.root.left = T.newNode T.root, 1
+    T.root.left.left = T.newNode T.root.left
+    T.root.left.right = T.newNode T.root.left, 7
+    T.root.left.right.left = T.newNode T.root.left.right
+    T.root.left.right.right = T.newNode T.root.left.right
+    T.root.right = T.newNode T.root, 20
+    T.root.right.left = T.newNode T.root.right
+    T.root.right.right = T.newNode T.root.right
+  T.draw()
+  commandInput := document.querySelector('#command') as HTMLInputElement
+  document.querySelector('form')!.addEventListener 'submit', (e) ->
+    e.preventDefault()
+    execute commandInput.value
+  function execute(commandString: string): void
+    command .= commandString.split(/\s+/).filter &
+    return unless command#
+    command[0] = command[0].toLowerCase()
+    if command[0] is 'clear'
+      T.clear()
+      commandInput.value = command[1..].join ' '
+      T.draw()
+      return
+    return if command# < 2
+    let dex: number
+    dex = parseInt command[1]
+    if isNaN dex
+      dex = byName command[1]
+    if command# > 2
+      commandInput.value = [command[0], ...command[2..]].join ' '
+    else
+      commandInput.value = ''
+    switch command[0]
+      when 'find', 'f'
+        T.animFind dex
+      when 'ins', 'add', 'insert', 'i', 'a'
+        T.animInsert dex
+      when 'del', 'rem', 'delete', 'remove', 'd'
+        T.animDelete dex
+      when 'l', 'rotl', 'rotatel'
+        T.animRotate dex, 'left'
+      when 'r', 'rotr', 'rotater'
+        T.animRotate dex, 'right'
+
+window.addEventListener 'load', gui

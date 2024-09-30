@@ -1,0 +1,25 @@
+{
+  "name": "poketree",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Binary Search Trees with Pokemon",
+  "main": "index.js",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@svgdotjs/svg.js": "^3.2.4",
+    "stylus": "^0.63.0"
+  },
+  "devDependencies": {
+    "@danielx/civet": "^0.7.31",
+    "@vituum/vite-plugin-pug": "^1.1.0",
+    "pug": "^3.0.3",
+    "vite": "^5.4.8"
+  },
+  "packageManager": "pnpm@9.11.0+sha512.0a203ffaed5a3f63242cd064c8fb5892366c103e328079318f78062f24ea8c9d50bc6a47aa3567cabefd824d170e78fa2745ed1f16b132e16436146b7688f19b"
+}

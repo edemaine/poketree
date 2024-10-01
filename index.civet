@@ -43,6 +43,11 @@ class SpriteNode
         0
     @sizeText?.plain @size.toString()
     @size
+  skew(): number
+    if @key?
+      @right!.height! - @left!.height!
+    else
+      0
   inorder(): Generator<SpriteNode>
     return unless @key?
     yield* @left!.inorder()
@@ -99,6 +104,8 @@ class SpriteNode
       @parentLine.plot @x!, @y!, @x!, @y!
   addClass(className: string): void
     @g.addClass className
+  removeClass(className: string): void
+    @g.removeClass className
 
   // Call computeSize() before this
   layout(x: number, y: number): void
@@ -215,7 +222,7 @@ class SpriteTree
     await @animInsert key, true
     return
 
-  animInsert(key: number, find = false, del?: boolean): Promise<{node: SpriteNode, newNode: SpriteNode}?>
+  animInsert(key: number, find = false, del?: boolean): Promise<{node: SpriteNode, newNode?: SpriteNode}?>
     node .= @find key
     if @empty()
       unless find
@@ -269,13 +276,14 @@ class SpriteTree
       node.setKey key
       newNode.remove()
     await @draw not find
-    return
+    return {node}
 
-  animDelete(key: number): Promise<void>
+  animDelete(key: number): Promise<{node: SpriteNode}?>
     //unless {node, newNode} .= await @animInsert key, true, true
     return unless ref .= await @animInsert key, true, true
     {node, newNode} .= ref
     node.setKey undefined
+    newNode = newNode!
 
     /*
     function swap(other: SpriteNode): void
@@ -330,9 +338,10 @@ class SpriteTree
             direction .= Math.sign n.x! - node.x!
             n.animMove n.x! - direction * xSpace / 2, n.y!
         await @draw true
-        return
+        return {node}
 
-  animRotate(key: number, direction: 'left' | 'right'): Promise<void>
+  animRotate(key: number?, direction: 'left' | 'right'): Promise<void>
+    return unless key?
     opposite: 'left' | 'right' .= 'left'
     if direction is 'left'
       opposite = 'right'
@@ -392,6 +401,38 @@ class SpriteTree
     await @draw true
     return
 
+  animAVL(key: number?): Promise<void>
+    return unless key?
+    node: SpriteNode? .= @find key
+    @root.computeHeight()
+    while node?.key?
+      if Math.abs(node.skew()) > 1
+        node.addClass 'bad'
+        await new Promise (done) => setTimeout done, animDelay
+        if node.skew() < -1
+          if node.left!.skew() > 0
+            await @animRotate node.left!.key, 'left'
+          await @animRotate node.key, 'right'
+        else if node.skew() > 1
+          if node.right!.skew() < 0
+            await @animRotate node.right!.key, 'right'
+          await @animRotate node.key, 'left'
+        node.removeClass 'bad'
+      node = node.parent
+    return
+
+  animAVLInsert(key: number): Promise<void>
+    result .= await @animInsert key
+    return unless result?
+    {node} .= result
+    await @animAVL key
+
+  animAVLDelete(key: number): Promise<void>
+    result .= await @animDelete key
+    return unless result?
+    {node} .= result
+    await @animAVL node.parent?.key
+
 function gui(): void
   svg := SVG().addTo '#app'
   T := new SpriteTree svg
@@ -448,6 +489,12 @@ function gui(): void
         T.animRotate dex, 'left'
       when 'r', 'rotr', 'rotater'
         T.animRotate dex, 'right'
+      when 'avl'
+        T.animAVL dex
+      when 'aa', 'ai', 'avladd', 'avlins'
+        T.animAVLInsert dex
+      when 'ad', 'avldel', 'avlrem'
+        T.animAVLDelete dex
       else
         Promise.resolve()
     .then => submit()

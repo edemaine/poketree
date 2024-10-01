@@ -70,10 +70,10 @@ class SpriteNode
 
   // Main node rendering
   setKey(@key: number?): void
-    @size = 1
-    @height = 0
     @g.clear()
     return unless @key?
+    @size = 1
+    @height = 0
     @g.opacity 1
     let loadComplete: =>
     @loaded = new Promise (loadComplete =)
@@ -173,7 +173,8 @@ class SpriteTree
   newNode(parent?: SpriteNode, key?: number?)
     new SpriteNode @, parent, key
   clear(): void
-    @svg.clear()
+    @lineGroup.clear()
+    @nodeGroup.clear()
     @root = @newNode()
   empty(): boolean
     not @root.key?
@@ -466,8 +467,9 @@ function gui(): void
     command[0] = command[0].toLowerCase()
     if command[0] is 'clear'
       T.clear()
-      commandInput.value = command[1..].join ' '
       T.draw()
+      commandInput.value = command[1..].join ' '
+      submit()
       return
     return if command# < 2
     let dex: number

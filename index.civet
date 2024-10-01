@@ -439,13 +439,13 @@ function gui(): void
   svg := SVG().addTo '#app'
   T := new SpriteTree svg
   if true
-    T.root.setKey 15
-    T.root.left = T.newNode T.root, 1
+    T.root.setKey 39 // Jigglypuff
+    T.root.left = T.newNode T.root, 7 // Squirtle
     T.root.left.left = T.newNode T.root.left
-    T.root.left.right = T.newNode T.root.left, 7
+    T.root.left.right = T.newNode T.root.left, 25 // Pikachu
     T.root.left.right.left = T.newNode T.root.left.right
     T.root.left.right.right = T.newNode T.root.left.right
-    T.root.right = T.newNode T.root, 20
+    T.root.right = T.newNode T.root, 114 // Tangela
     T.root.right.left = T.newNode T.root.right
     T.root.right.right = T.newNode T.root.right
   T.draw()

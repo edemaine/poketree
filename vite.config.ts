@@ -4,6 +4,7 @@ import civetVitePlugin from '@danielx/civet/vite'
 import pug from '@vituum/vite-plugin-pug'
 
 export default defineConfig({
+  base: '/poketree/',
   plugins: [
     pug(),
     civetVitePlugin({

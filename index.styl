@@ -1,6 +1,8 @@
 :root, input
   background: black
   color: white
+  --height-color: magenta
+  --size-color: cyan
 
 #app
   position: absolute
@@ -21,9 +23,25 @@ line
 text
   fill: white
   text-anchor: middle
-  dominant-baseline: hanging
+  &.key
+    dominant-baseline: hanging
+  &.height
+    dominant-baseline: middle
+    fill: var(--height-color)
+  &.size
+    fill: var(--size-color)
   font-family: sans-serif
   font-size: 32px
 g.bad
   text
     fill: red
+
+label.height
+  color: var(--height-color)
+label.size
+  color: var(--size-color)
+
+:root:not(.height) text.height
+  display: none
+:root:not(.size) text.size
+  display: none

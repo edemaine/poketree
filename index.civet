@@ -1,4 +1,4 @@
-{ SVG, type Svg, type G, type Line } from @svgdotjs/svg.js
+{ SVG, type Svg, type G, type Line, type Text } from @svgdotjs/svg.js
 { urlFor, byName } from ./pokedex.civet
 
 xSpace .= 80
@@ -14,6 +14,8 @@ class SpriteNode
   size: number?
   height: number?
   parentLine: Line
+  heightText: Text?
+  sizeText: Text?
   loaded: Promise<void>?
 
   x: number?
@@ -30,13 +32,17 @@ class SpriteNode
       if @key?
         1 + Math.max @left!.computeHeight(), @right!.computeHeight()
       else
-        0
+        -1
+    @heightText?.plain @height.toString()
+    @height
   computeSize(): number
     @size =
       if @key?
         @left!.computeSize() + 1 + @right!.computeSize()
       else
         0
+    @sizeText?.plain @size.toString()
+    @size
   inorder(): Generator<SpriteNode>
     return unless @key?
     yield* @left!.inorder()
@@ -59,6 +65,8 @@ class SpriteNode
 
   // Main node rendering
   setKey(@key: number?): void
+    @size = 1
+    @height = 0
     @g.clear()
     return unless @key?
     @g.opacity 1
@@ -68,9 +76,18 @@ class SpriteNode
     .size nodeSize, nodeSize
     .center 0, 0
     @loaded.then =>
-      @g.text @key!.toString()
+      @g.plain @key!.toString()
       .attr 'x', 0
       .attr 'y', nodeSize/2
+      .addClass 'key'
+      @heightText = @g.plain (@height ?? 0).toString()
+      .attr 'x', -nodeSize * 0.6
+      .attr 'y', 0
+      .addClass 'height'
+      @sizeText = @g.plain (@size ?? 1).toString()
+      .attr 'x', +nodeSize * 0.6
+      .attr 'y', 0
+      .addClass 'size'
     @updateParentLine()
   setParent(@parent: SpriteNode?): void
     @updateParentLine()
@@ -164,7 +181,7 @@ class SpriteTree
     xMin .= @root.x! - (@root.left?.size ?? 0) * xSpace - nodeSize
     xMax .= @root.x! + (@root.right?.size ?? 0) * xSpace + nodeSize
     yMin .= @root.y! - nodeSize
-    yMax .= @root.y! + @root.height! * ySpace + nodeSize
+    yMax .= @root.y! + (@root.height! + 1) * ySpace + nodeSize
     width .= xMax - xMin
     height .= yMax - yMin
     oldBox .= @svg.viewbox()
@@ -396,6 +413,11 @@ function gui(): void
     submit = (e?: SubmitEvent) =>
       e?.preventDefault()
       execute commandInput.value
+
+  for toggle of ['size', 'height']
+    document.querySelector(`#${toggle}`)!.addEventListener 'input', (e) =>
+      document.documentElement.classList.toggle toggle,
+        (e.currentTarget as HTMLInputElement).checked
 
   function execute(commandString: string): void
     command .= commandString.split(/\s+/).filter &

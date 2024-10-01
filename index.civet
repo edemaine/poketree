@@ -461,6 +461,9 @@ function gui(): void
     document.querySelector(`#${toggle}`)!.addEventListener 'input', (e) =>
       document.documentElement.classList.toggle toggle,
         (e.currentTarget as HTMLInputElement).checked
+  document.querySelector('#speed')!.addEventListener 'input', (e) =>
+    speed := (e.currentTarget as HTMLInputElement).valueAsNumber
+    animDelay = 6000 / speed
 
   function execute(commandString: string): void
     command .= commandString.split(/\s+/).filter &

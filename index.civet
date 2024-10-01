@@ -101,26 +101,20 @@ class SpriteNode
       translateY: @y
     @updateParentLine()
     @
-  animMove(@x: number, @y: number, newParent?: SpriteNode??): Promise<void>
+  animMove(@x: number, @y: number, skipLine?: boolean): Promise<void>
     new Promise (done) =>
-      //old := @parentLine.plot()[1]
       @g.animate(animDelay).transform
         translateX: @x
         translateY: @y
       .during (t: number) =>
-        return if newParent is null
-        if newParent? or @parent?
+        if @parent? and not skipLine
           trans .= @g.transform()
-          transParent .= (newParent ?? @parent)!.g.transform()
+          transParent .= @parent.g.transform()
           @parentLine.plot
             trans.translateX!, trans.translateY!
             transParent.translateX!, transParent.translateY!
-            //(1-t) * old![0] + t * (transParent.translateX! - trans.translateX!)
-            //(1-t) * old![1] + t * (transParent.translateY! - trans.translateY!)
       .after =>
         done()
-  animParent(@parent: SpriteNode): Promise<void>
-    @animMove @x!, @y!, @parent
   remove(): void
     @g.remove()
     @parentLine.remove()
@@ -286,7 +280,7 @@ class SpriteTree
           await newNode.animMove pred.x!, pred.y!
         /*
         predXY .= pred.{x!,y!}
-        await pred.animMove start.x, start.y, null
+        await pred.animMove start.x, start.y, true
         swap pred
         pred.{x,y} = predXY
         */
@@ -351,26 +345,33 @@ class SpriteTree
         node.parent.left = child
       else
         node.parent.right = child
+      node.parentLine.animate animDelay
+      .plot
+        child.x!, node.y!
+        node.parent.x!, node.parent.y!
     nodeY := node.y!
-    await.all [
-      if node.parent?
-        child.parentLine.animate animDelay
-        .plot
-          child.x! - node.x!, 0
-          node.parent.x! - child.x!, node.parent.y! - child.y!
-      node.animMove node.x!, child.y!
-      child.animMove child.x!, nodeY, null
-      ...for n of child[opposite]!.inorder()
-        n.animMove n.x!, n.y! - ySpace
-      ...for n of node[direction]!.inorder()
-        n.animMove n.x!, n.y! + ySpace//, if n is child[opposite] then node
-      child[direction]?.animParent node
-    ]
     child.parent = node.parent
     node[opposite] = child[direction]
     child[direction] = node
     node.parent = child
+    child.parentLine.animate animDelay
+    .plot
+      child.x!, node.y!
+      node.x!, child.y!
     node[opposite]!.parent = node
+    if node[opposite]!.key?
+      node[opposite]!.parentLine.animate animDelay
+      .plot
+        node[opposite]!.x!, node[opposite]!.y!
+        node.x!, child!.y!
+    await.all [
+      node.animMove node.x!, child.y!, true
+      child.animMove child.x!, nodeY, true
+      ...for n of child[opposite]!.inorder()
+        n.animMove n.x!, n.y! - ySpace
+      ...for n of node[direction]!.inorder()
+        n.animMove n.x!, n.y! + ySpace
+    ]
     await @draw true
     return
 

@@ -3,8 +3,8 @@ import { defineConfig } from 'vite'
 import civetVitePlugin from '@danielx/civet/vite'
 import pug from '@vituum/vite-plugin-pug'
 
-export default defineConfig({
-  base: '/poketree/',
+export default defineConfig(({command}) => ({
+  ...(command === 'build' ? {base: '/poketree/'} : undefined),
   plugins: [
     pug(),
     civetVitePlugin({
@@ -16,4 +16,4 @@ export default defineConfig({
       input: ['index.pug.html']
     }
   }
-});
+}));

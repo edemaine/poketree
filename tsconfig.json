@@ -4,15 +4,10 @@
     "jsx": "preserve",
     "lib": ["es2021", "dom"],
     "target": "es2015",
+    "module": "nodenext",
     "moduleResolution": "bundler",
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "esModuleInterop": true
-  },
-  "ts-node": {
-    "transpileOnly": true,
-    "compilerOptions": {
-      "module": "nodenext"
-    }
   }
 }

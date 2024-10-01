@@ -481,6 +481,7 @@ function gui(): void
       commandInput.value = [command[0], ...command[2..]].join ' '
     else
       commandInput.value = ''
+    commandInput.disabled = true
     switch command[0]
       when 'find', 'f'
         T.animFind dex
@@ -500,6 +501,12 @@ function gui(): void
         T.animAVLDelete dex
       else
         Promise.resolve()
-    .then => submit()
+    .then =>
+      commandInput.disabled = false
+      commandInput.focus()
+      submit()
+    .catch =>
+      commandInput.disabled = false
+      commandInput.focus()
 
 window.addEventListener 'load', gui

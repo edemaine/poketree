@@ -13,14 +13,17 @@ class SpriteNode
   right: SpriteNode?
   size: number?
   height: number?
-  parentLine: Line?
+  parentLine: Line
   loaded: Promise<void>?
 
   x: number?
   y: number?
+  tree: SpriteTree
   g: G
 
-  @(@g: G, @parent?: SpriteNode, key?: number?)
+  @(@tree: SpriteTree, @parent?: SpriteNode, key?: number?)
+    @g = @tree.nodeGroup.group()
+    @parentLine = @tree.lineGroup.line()
     @setKey key
   computeHeight(): number
     @height =
@@ -57,9 +60,8 @@ class SpriteNode
   // Main node rendering
   setKey(@key: number?): void
     @g.clear()
-    @parentLine = undefined
     return unless @key?
-    @parentLine = @g.line 0, 0, 0, 0
+    @g.opacity 1
     let loadComplete: =>
     @loaded = new Promise (loadComplete =)
     @g.image urlFor(@key), loadComplete!
@@ -73,10 +75,11 @@ class SpriteNode
   setParent(@parent: SpriteNode?): void
     @updateParentLine()
   updateParentLine(): void
+    @parentLine.opacity 1
     if @parent?
-      @parentLine!.plot 0, 0, @parent.x! - @x!, @parent.y! - @y!
+      @parentLine.plot @x!, @y!, @parent.x!, @parent.y!
     else
-      @parentLine!.plot 0, 0, 0, 0
+      @parentLine.plot @x!, @y!, @x!, @y!
   addClass(className: string): void
     @g.addClass className
 
@@ -96,55 +99,71 @@ class SpriteNode
     @g.transform
       translateX: @x
       translateY: @y
+    @updateParentLine()
     @
   animMove(@x: number, @y: number, newParent?: SpriteNode??): Promise<void>
     new Promise (done) =>
-      old := @parentLine?.plot()[1]
+      //old := @parentLine.plot()[1]
       @g.animate(animDelay).transform
         translateX: @x
         translateY: @y
       .during (t: number) =>
         return if newParent is null
-        if @parentLine? and (newParent? or @parent?)
+        if newParent? or @parent?
           trans .= @g.transform()
           transParent .= (newParent ?? @parent)!.g.transform()
-          @parentLine!.plot 0, 0,
-            (1-t) * old![0] + t * (transParent.translateX! - trans.translateX!)
-            (1-t) * old![1] + t * (transParent.translateY! - trans.translateY!)
+          @parentLine.plot
+            trans.translateX!, trans.translateY!
+            transParent.translateX!, transParent.translateY!
+            //(1-t) * old![0] + t * (transParent.translateX! - trans.translateX!)
+            //(1-t) * old![1] + t * (transParent.translateY! - trans.translateY!)
       .after =>
         done()
   animParent(@parent: SpriteNode): Promise<void>
     @animMove @x!, @y!, @parent
   remove(): void
     @g.remove()
+    @parentLine.remove()
   fadeOut(): Promise<void>
     new Promise (done) =>
+      @parentLine.animate(animDelay)
+      .opacity 0
       @g.animate(animDelay)
       .opacity 0
       .after =>
-        @remove()
+        @g.clear()
+        @parentLine.plot 0, 0, 0, 0
         done()
   eject(newKey: number): SpriteNode
     key .= @key
     @setKey newKey
-    new SpriteNode @g.root().group(), undefined, key
+    new SpriteNode @tree, undefined, key
     .move @x!, @y!
 
 class SpriteTree
   svg: Svg
   root: SpriteNode
+  lineGroup: G
+  nodeGroup: G
 
   @(@svg: Svg)
+    @lineGroup .= @svg.group()
+    .addClass 'lines'
+    @nodeGroup .= @svg.group()
+    .addClass 'nodes'
     @root = @newNode()
   newNode(parent?: SpriteNode, key?: number?)
-    new SpriteNode @svg.group(), parent, key
+    new SpriteNode @, parent, key
   clear(): void
     @svg.clear()
     @root = @newNode()
   empty(): boolean
     not @root.key?
 
-  draw(anim?: boolean): void
+  draw(anim?: boolean): Promise<void>
+    // Draw nodes in postorder
+    //for node of @root.postorder()
+    //  @nodeGroup.add node.g
     @root.computeSize()
     @root.computeHeight()
     @root.layout @root.x ?? 0, @root.y ?? 0
@@ -156,19 +175,20 @@ class SpriteTree
     height .= yMax - yMin
     oldBox .= @svg.viewbox()
     if anim and not (xMin is oldBox.x and yMin is oldBox.y and width is oldBox.w and height is oldBox.h)
-      @root.g.animate animDelay
-      .during (t: number) =>
-        @svg.viewbox
-          (1-t) * oldBox.x + t * xMin
-          (1-t) * oldBox.y + t * yMin
-          (1-t) * oldBox.w + t * width
-          (1-t) * oldBox.h + t * height
-      .after => @svg.viewbox xMin, yMin, width, height
+      new Promise (done) =>
+        @root.g.animate animDelay
+        .during (t: number) =>
+          @svg.viewbox
+            (1-t) * oldBox.x + t * xMin
+            (1-t) * oldBox.y + t * yMin
+            (1-t) * oldBox.w + t * width
+            (1-t) * oldBox.h + t * height
+        .after =>
+          @svg.viewbox xMin, yMin, width, height
+          done undefined
     else
       @svg.viewbox xMin, yMin, width, height
-    // Draw nodes in postorder to ensure lines to parent are below parent
-    for node of @root.postorder()
-      @svg.add node.g
+      Promise.resolve()
 
   find(key: number): SpriteNode
     node .= @root
@@ -180,8 +200,9 @@ class SpriteTree
       else
         node = node.right!
 
-  animFind(key: number)
-    @animInsert key, true
+  animFind(key: number): Promise<void>
+    await @animInsert key, true
+    return
 
   animInsert(key: number, find = false, del?: boolean): Promise<{node: SpriteNode, newNode: SpriteNode}?>
     node .= @find key
@@ -193,15 +214,14 @@ class SpriteTree
         @draw()
       return
 
-    //timeline .= new SVG.Timeline()
-
     newNode .= @newNode undefined, key
     newNode.addClass 'bad' if del
     newNode.move @root.x!, -nodeSize
     await newNode.loaded
+
+    // animate move sprite to parent
     ancestors .= node.ancestors()
     ancestors.reverse()
-    // animate move sprite to parent
     for ancestor of ancestors
       await newNode.animMove ancestor.x!, ancestor.y!
 
@@ -209,8 +229,8 @@ class SpriteTree
       unless find
         node.left = @newNode node
         node.right = @newNode node
-        node.setKey newNode.key
         node.move newNode.x!, newNode.y!
+        node.setKey newNode.key
       parent := node.parent!
       newX .=
         if node is parent.left
@@ -237,19 +257,23 @@ class SpriteTree
         return {node, newNode}
       node.setKey key
       newNode.remove()
-    @draw not find
+    await @draw not find
     return
 
-  animDelete(key: number)
+  animDelete(key: number): Promise<void>
     //unless {node, newNode} .= await @animInsert key, true, true
     return unless ref .= await @animInsert key, true, true
     {node, newNode} .= ref
     node.setKey undefined
 
-    function swap(other: SpriteNode)
+    /*
+    function swap(other: SpriteNode): void
       key .= node.key
       node.setKey other.key
       other.setKey key
+      [node.x, other.x] = [other.x, node.x]
+      [node.y, other.y] = [other.y, node.y]
+    */
 
     loop // swap down until empty subtree
       node = node!
@@ -260,6 +284,12 @@ class SpriteTree
         while pred.right?.key?
           pred = pred.right
           await newNode.animMove pred.x!, pred.y!
+        /*
+        predXY .= pred.{x!,y!}
+        await pred.animMove start.x, start.y, null
+        swap pred
+        pred.{x,y} = predXY
+        */
         eject .= pred.eject key
         await eject.animMove start.x, start.y
         node.setKey eject.key
@@ -285,13 +315,13 @@ class SpriteTree
         node.setKey undefined
         await.all
           for n of @root.inorder() // animate collapse space
-            continue if n is node
+            continue if n is node or n.key is key
             direction .= Math.sign n.x! - node.x!
             n.animMove n.x! - direction * xSpace / 2, n.y!
-        @draw true
+        await @draw true
         return
 
-  animRotate(key: number, direction: 'left' | 'right')
+  animRotate(key: number, direction: 'left' | 'right'): Promise<void>
     opposite: 'left' | 'right' .= 'left'
     if direction is 'left'
       opposite = 'right'
@@ -303,12 +333,15 @@ class SpriteTree
     child .= node[opposite]
     unless child?.key?
       sign .= if direction is 'left' then 1 else -1
-      flash .= @svg.line node.x!, node.y!, node.x! + sign * xSpace, node.y! + ySpace
-      .back()
-      .addClass 'bad'
-      flash.animate animDelay
-      .opacity 0
-      .after => flash.remove()
+      await new Promise<void> (done) =>
+        flash .= @svg.line node.x!, node.y!, node.x! + sign * xSpace, node.y! + ySpace
+        .back()
+        .addClass 'bad'
+        flash.animate animDelay
+        .opacity 0
+        .after =>
+          flash.remove()
+          done()
       return
 
     unless node.parent?
@@ -318,20 +351,10 @@ class SpriteTree
         node.parent.left = child
       else
         node.parent.right = child
-        /*
-      schedule_morph_line(
-              @canvas,
-              child.tags[1],
-              interpolate_int_point(node.parent.x, node.parent.y, node.parent.x, node.parent.y),
-              interpolate_int_point(node.x, node.y, child.x, node.y),
-              0,
-              anim_delay)
-              */
     nodeY := node.y!
     await.all [
       if node.parent?
-        console.log 'child', child.key, 'parent', node.parent.key
-        child.parentLine!.animate animDelay
+        child.parentLine.animate animDelay
         .plot
           child.x! - node.x!, 0
           node.parent.x! - child.x!, node.parent.y! - child.y!
@@ -348,7 +371,8 @@ class SpriteTree
     child[direction] = node
     node.parent = child
     node[opposite]!.parent = node
-    @draw true
+    await @draw true
+    return
 
 function gui(): void
   svg := SVG().addTo '#app'
@@ -364,10 +388,14 @@ function gui(): void
     T.root.right.left = T.newNode T.root.right
     T.root.right.right = T.newNode T.root.right
   T.draw()
+
   commandInput := document.querySelector('#command') as HTMLInputElement
-  document.querySelector('form')!.addEventListener 'submit', (e) ->
-    e.preventDefault()
-    execute commandInput.value
+  let submit: (e?: SubmitEvent) => void
+  document.querySelector('form')!.addEventListener 'submit',
+    submit = (e?: SubmitEvent) =>
+      e?.preventDefault()
+      execute commandInput.value
+
   function execute(commandString: string): void
     command .= commandString.split(/\s+/).filter &
     return unless command#
@@ -397,5 +425,8 @@ function gui(): void
         T.animRotate dex, 'left'
       when 'r', 'rotr', 'rotater'
         T.animRotate dex, 'right'
+      else
+        Promise.resolve()
+    .then => submit()
 
 window.addEventListener 'load', gui

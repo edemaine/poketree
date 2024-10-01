@@ -75,6 +75,8 @@ which used Python, specifically Tkinter's Canvas widget.
 and ported the code to the web platform,
 specifically using [Pug](https://pugjs.org/),
 [Stylus](https://stylus-lang.com/), and [Civet](https://civet.org/).
+Both versions were made as teaching aids for the MIT class
+[6.1210: Introduction to Algorithms](https://student.mit.edu/catalog/m6a.html#6.1210).
 
 Thanks to [HybridShivam/Pokemon](https://github.com/HybridShivam/Pokemon/)
 for providing the Pokémon images, based on

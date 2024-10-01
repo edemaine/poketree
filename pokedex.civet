@@ -1,5 +1,7 @@
+maxDex .= 777
+
 export function urlFor(id: number): string
-  id = (id - 1) %% 777 + 1
+  id = (id - 1) %% maxDex + 1
   `https://raw.githubusercontent.com/HybridShivam/Pokemon/master/assets/images/${id.toString().padStart 3, '0'}.png`
 
 export function byName(query: string): number
@@ -1053,4 +1055,4 @@ natDex := [
   "Iron Crown"
   "Terapagos"
   "Pecharunt"
-]
+][0...maxDex]

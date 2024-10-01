@@ -1,5 +1,5 @@
 { SVG, type Svg, type G, type Line, type Text } from @svgdotjs/svg.js
-{ urlFor, byName } from ./pokedex.civet
+{ urlFor, byName, toName } from ./pokedex.civet
 
 xSpace .= 80
 ySpace .= 100
@@ -80,6 +80,7 @@ class SpriteNode
     @g.image urlFor(@key), loadComplete!
     .size nodeSize, nodeSize
     .center 0, 0
+    .add @g.element('title').words toName @key
     @loaded.then =>
       @g.plain @key!.toString()
       .attr 'x', 0

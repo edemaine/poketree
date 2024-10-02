@@ -9,7 +9,20 @@ html
   body
     div#app
     form
-      input#command(autofocus, title="find/f, insert/ins/i/add/a, delete/del/d/remove/rem, rotatel/rotl/l, rotater/rotr/r, clear, avladd/aa/avlins/ai, avldel/ad/avlrem")
+      label
+        input(type="radio", name="mode", value="BST", checked)
+        | BST
+      |  
+      label
+        input(type="radio", name="mode", value="AVL")
+        | AVL
+      //
+        |  
+        label
+          input(type="radio", name="mode", value="heap")
+          | Heap
+      p
+      input#command(autofocus)
       p
       label
         input(type="range", min="1", max="11", value="6")#speed

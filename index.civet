@@ -403,25 +403,40 @@ class SpriteTree
     await @draw true
     return
 
+  // AVLify a node (specified by key) and its ancestors,
+  // as used by AVL Insert and AVL Delete
   animAVL(key: number?): Promise<void>
     return unless key?
     node: SpriteNode? .= @find key
     @root.computeHeight()
     while node?.key?
-      if Math.abs(node.skew()) > 1
-        node.addClass 'bad'
-        await new Promise (done) => setTimeout done, animDelay
-        if node.skew() < -1
-          if node.left!.skew() > 0
-            await @animRotate node.left!.key, 'left'
-          await @animRotate node.key, 'right'
-        else if node.skew() > 1
-          if node.right!.skew() < 0
-            await @animRotate node.right!.key, 'right'
-          await @animRotate node.key, 'left'
-        node.removeClass 'bad'
+      await @animAVLOne node
       node = node.parent
-    return
+
+  // AVLify a single node
+  animAVLOne(node: SpriteNode): Promise<boolean>
+    if Math.abs(node.skew()) > 1
+      node.addClass 'bad'
+      await new Promise (done) => setTimeout done, animDelay
+      if node.skew() < -1
+        if node.left!.skew() > 0
+          await @animRotate node.left!.key, 'left'
+        await @animRotate node.key, 'right'
+      else if node.skew() > 1
+        if node.right!.skew() < 0
+          await @animRotate node.right!.key, 'right'
+        await @animRotate node.key, 'left'
+      node.removeClass 'bad'
+      true
+    else
+      false
+
+  // AVLify all nodes in post order (for converting BST into AVL)
+  animAVLAll(): Promise<void>
+    @root.computeHeight()
+    for node of @root.postorder()
+      // May need to AVLify the same node multiple times, for large skew
+      while await @animAVLOne node
 
   animAVLInsert(key: number): Promise<void>
     result .= await @animInsert key
@@ -434,6 +449,8 @@ class SpriteTree
     return unless result?
     {node} .= result
     await @animAVL node.parent?.key
+
+type Mode = 'BST' | 'AVL'
 
 function gui(): void
   svg := SVG().addTo '#app'
@@ -450,12 +467,91 @@ function gui(): void
     T.root.right.right = T.newNode T.root.right
   T.draw()
 
+  mode: Mode .= 'BST'
+  modeCommands: Record<Mode, Record<string, (key: number) => Promise<unknown>>> :=
+    BST:
+      find: T@animFind
+      insert: T@animInsert
+      delete: T@animDelete
+      rotateleft: (key: number) => T.animRotate key, 'left'
+      rotateright: (key: number) => T.animRotate key, 'right'
+      avl: T@animAVL
+      avlinsert: T@animAVLInsert
+      avldelete: T@animAVLDelete
+    AVL:
+      find: T@animFind
+      insert: T@animAVLInsert
+      delete: T@animAVLDelete
+      avlinsert: T@animAVLInsert
+      avldelete: T@animAVLDelete
+  aliases: Record<string, string> :=
+    f: 'find'
+    ins: 'insert'
+    i: 'insert'
+    add: 'insert'
+    a: 'insert'
+    del: 'delete'
+    d: 'delete'
+    remove: 'delete'
+    rem: 'delete'
+    avladd: 'avlinsert'
+    aa: 'avlinsert'
+    avlins: 'avlinsert'
+    ai: 'avlinsert'
+    avldel: 'avldelete'
+    avlrem: 'avldelete'
+    ad: 'avldelete'
+    rotatel: 'rotateleft'
+    rotleft: 'rotateleft'
+    rotl: 'rotateleft'
+    left: 'rotateleft'
+    l: 'rotateleft'
+    rotater: 'rotateright'
+    rotright: 'rotateright'
+    rotr: 'rotateright'
+    right: 'rotateright'
+    r: 'rotateright'
+
   commandInput := document.querySelector('#command') as HTMLInputElement
   let submit: (e?: SubmitEvent) => void
   document.querySelector('form')!.addEventListener 'submit',
     submit = (e?: SubmitEvent) =>
       e?.preventDefault()
       execute commandInput.value
+
+  function start
+    commandInput.disabled = true
+    for each modeInput of document.querySelectorAll('input[name="mode"]') as NodeListOf<HTMLInputElement>
+      modeInput.disabled = not modeInput.checked
+  function finish
+    for each modeInput of document.querySelectorAll('input[name="mode"]') as NodeListOf<HTMLInputElement>
+      modeInput.disabled = false
+    commandInput.disabled = false
+    commandInput.focus()
+
+  function updateMode: void
+    newMode .= new FormData(document.querySelector('form')!).get('mode') as Mode
+    commandInput.title =
+      switch mode
+        when 'BST'
+          "find/f, insert/ins/i/add/a, delete/del/d/remove/rem, rotateleft/rotl/l, rotateright/rotr/r, avladd/aa/avlins/ai, avldel/ad/avlrem, clear"
+        when 'AVL'
+          "find/f, insert/ins/i/add/a, delete/del/d/remove/rem, clear"
+        else
+          ''
+    unless mode is newMode or T.empty()
+      start()
+      switch mode + newMode
+        when 'BSTAVL'
+          T.animAVLAll()
+        else
+          Promise.resolve()
+      .finally => finish()
+      commandInput.focus()
+    mode = newMode
+  updateMode()
+  for each radio of document.querySelectorAll 'input[name="mode"]'
+    radio.addEventListener 'input', updateMode
 
   for toggle of ['size', 'height']
     document.querySelector(`#${toggle}`)!.addEventListener 'input', (e) =>
@@ -476,40 +572,22 @@ function gui(): void
       submit()
       return
     return if command# < 2
-    let dex: number
-    dex = parseInt command[1]
-    if isNaN dex
-      dex = byName command[1]
+    let key: number
+    key = parseInt command[1]
+    if isNaN key
+      key = byName command[1]
     if command# > 2
       commandInput.value = [command[0], ...command[2..]].join ' '
     else
       commandInput.value = ''
-    commandInput.disabled = true
-    switch command[0]
-      when 'find', 'f'
-        T.animFind dex
-      when 'ins', 'add', 'insert', 'i', 'a'
-        T.animInsert dex
-      when 'del', 'rem', 'delete', 'remove', 'd'
-        T.animDelete dex
-      when 'l', 'rotl', 'rotatel'
-        T.animRotate dex, 'left'
-      when 'r', 'rotr', 'rotater'
-        T.animRotate dex, 'right'
-      when 'avl'
-        T.animAVL dex
-      when 'aa', 'ai', 'avladd', 'avlins'
-        T.animAVLInsert dex
-      when 'ad', 'avldel', 'avlrem'
-        T.animAVLDelete dex
-      else
-        Promise.resolve()
+    start()
+    cmd .= command[0]
+    cmd = aliases[cmd] if cmd in aliases
+    (modeCommands[mode]?[cmd] ?? => Promise.resolve()) key
     .then =>
-      commandInput.disabled = false
-      commandInput.focus()
+      finish()
       submit()
     .catch =>
-      commandInput.disabled = false
-      commandInput.focus()
+      finish()
 
 window.addEventListener 'load', gui

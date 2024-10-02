@@ -4,7 +4,7 @@
     "jsx": "preserve",
     "lib": ["es2021", "dom"],
     "target": "es2015",
-    "module": "nodenext",
+    "module": "preserve",
     "moduleResolution": "bundler",
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,

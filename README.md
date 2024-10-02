@@ -10,30 +10,47 @@ and **[AVL trees](https://en.wikipedia.org/wiki/AVL_tree)**.
 
 ## Usage
 
+### Modes
+
+First, choose your data structure:
+
+* **BST**: Vanilla
+  [Binary Search Tree](https://en.wikipedia.org/wiki/Binary_search_tree),
+  without rebalancing.  The height can be linear in the number of nodes.
+  This mode also supports manual rotation and explicit AVL operations.
+* **AVL**:
+  [Adelson-Velsky &amp; Landis trees](https://en.wikipedia.org/wiki/AVL_tree),
+  with automatic rebalancing after each insertion or deletion.
+  The height is guaranteed to be logarithmic in the number of nodes.
+  This mode forbids manual rotation.
+
 ### Commands
 
-The main interface is the text box in the top left.
+Next, enter commands into the text box in the top left.
 You can enter one of the following commands:
 
 * `clear`: Reset the tree to be empty.
 * `f key`/`find key`: Perform binary search to find the given key.
-* `a key`/`add key`/`i key`/`ins key`/`insert key`: Insert the given key
-  using the vanilla BST algorithm, without any rebalacing.
+* `a key`/`add key`/`i key`/`ins key`/`insert key`:
+  Insert the given key (if it doesn't exist).
+* `d key`/`del key`/`delete key`/`rem key`/`remove key`:
+  Delete the given key (if it exists).
+
+BST-only operations:
+
 * `ai key`/`avlins key`/`aa key`/`avladd key`: Insert the given key
   using the AVL algorithm.
   If you just use AVL operations, the height remains logarithmic.
-* `d key`/`del key`/`delete key`/`rem key`/`remove key`: Delete the given key
-  using the vanilla BST algorithm, without any rebalacing.
+  If you use it on a general BST, there are no guarantees.
 * `ad key`/`avldel key`/`avlrem key`: Delete the given key
   using the AVL algorithm.
   If you just use AVL operations, the height remains logarithmic.
 * `avl key`: Run the AVL restoration algorithm on the path from the specified
-  node to the root.  If you accidentally one vanilla BST insert or delete,
-  you can run this operation just above it to restore AVL balance
-  (if you had an AVL tree before).
-* `r key`/`rotr key`/`rotater key`:
+  node to the root.  For example, if you do this right after a vanilla
+  BST insert or delete, this is equivalent to doing an AVL insert or delete.
+* `r key`/`right key`/`rotr key`/`rotright key`/`rotater key`/`rotateright key`:
   Rotate-right the node containing the given key and its left child.
-* `l key`/`rotl key`/`rotatel key`:
+* `l key`/`left key`/`rotl key`/`rotleft key`/`rotatel key`/`rotateleft key`:
   Rotate-left the node containing the given key and its right child.
 
 Each `key` can be an **integer** or a **Pokémon name** (up to Generation VIII).

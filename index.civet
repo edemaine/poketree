@@ -158,6 +158,12 @@ class SpriteNode
     @setKey newKey
     new SpriteNode @tree, undefined, key
     .move @x!, @y!
+  // Swap actual images instead of redrawing with new keys, which can flicker
+  swap(other: SpriteNode): void
+    [@g, other.g] = [other.g, @g]
+    [@x, other.x] = [other.x, @x]
+    [@y, other.y] = [other.y, @y]
+    [@key, other.key] = [other.key, @key]
 
 class SpriteTree
   svg: Svg
@@ -593,12 +599,7 @@ class SpriteTree
       a.animMove bOrig.x, bOrig.y, true
       b.animMove aOrig.x, aOrig.y, true
     ]
-    // Restore coordinates from before move
-    a.move aOrig.x, aOrig.y
-    b.move bOrig.x, bOrig.y
-    // Swap keys instead
-    a.setKey bOrig.key
-    b.setKey aOrig.key
+    a.swap b
 
   animMaxHeapInsert(key: number): Promise<void>
     node .= await @animHeapAppend key

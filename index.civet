@@ -564,9 +564,12 @@ class SpriteTree
       node = node.parent
 
   animMaxHeapDeleteMax(): Promise<void>
+    @animMaxHeapDeleteNode @root
+
+  animMaxHeapDeleteNode(node: SpriteNode): Promise<void>
     return if @empty()
     last .= @heapArray().-1!
-    await @animSwap @root, last
+    await @animSwap node, last
 
     // Delete leaf
     await last.fadeOut()
@@ -578,8 +581,13 @@ class SpriteTree
         direction .= Math.sign n.x! - last.x!
         n.animMove n.x! - direction * xSpace / 2, n.y!
     await @draw true
-    await @animMaxHeapifyDown @root
+    await @animMaxHeapifyDown node
     @draw()
+
+  animMaxHeapDelete(key: number): Promise<void>
+    for node of @root.inorder()
+      if node.key is key
+        return await @animMaxHeapDeleteNode node
 
   animMaxHeapifyDown(node: SpriteNode): Promise<void>
     return unless node.key?
@@ -630,6 +638,7 @@ function gui(): void
       avldelete: T@animAVLDelete
     maxheap:
       insert: T@animMaxHeapInsert
+      delete: T@animMaxHeapDelete
       deletemax: (key) => T.animMaxHeapDeleteMax()
   aliases: Record<string, string> :=
     f: 'find'
@@ -643,8 +652,11 @@ function gui(): void
     rem: 'delete'
     delmax: 'deletemax'
     dmax: 'deletemax'
+    dm: 'deletemax'
     remmax: 'deletemax'
+    remm: 'deletemax'
     rmax: 'deletemax'
+    rm: 'deletemax'
     avladd: 'avlinsert'
     aa: 'avlinsert'
     avlins: 'avlinsert'
@@ -689,7 +701,7 @@ function gui(): void
         when 'AVL'
           "find/f, insert/ins/i/add/a, delete/del/d/remove/rem, clear"
         when 'maxheap'
-          "insert/ins/i/add/a, deletemax, delete/del/d/remove/rem, clear"
+          "insert/ins/i/add/a, deletemax/delmax/dmax/dm/removemax/rmax/rm, delete/del/d/remove/rem, clear"
         else
           ''
     unless mode is newMode or T.empty()

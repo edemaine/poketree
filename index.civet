@@ -705,6 +705,7 @@ function gui(): void
     remove: 'delete'
     rem: 'delete'
     delmax: 'deletemax'
+    delm: 'deletemax'
     dmax: 'deletemax'
     dm: 'deletemax'
     remmax: 'deletemax'

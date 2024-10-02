@@ -23,6 +23,9 @@ First, choose your data structure:
   with automatic rebalancing after each insertion or deletion.
   The height is guaranteed to be logarithmic in the number of nodes.
   This mode forbids manual rotation.
+* **Max Heap**:
+  [Binary heap](https://en.wikipedia.org/wiki/Heap_(data_structure))
+  via a complete binary tree (of logarithmic height).
 
 ### Commands
 
@@ -30,11 +33,16 @@ Next, enter commands into the text box in the top left.
 You can enter one of the following commands:
 
 * `clear`: Reset the tree to be empty.
-* `f key`/`find key`: Perform binary search to find the given key.
+* `b key key ...`/`build key key ...`: Build new structure with the given keys.
+  (Clears all existing keys.)
 * `a key`/`add key`/`i key`/`ins key`/`insert key`:
   Insert the given key (if it doesn't exist).
 * `d key`/`del key`/`delete key`/`rem key`/`remove key`:
   Delete the given key (if it exists).
+
+BST/AVL-only operations:
+
+* `f key`/`find key`: Perform binary search to find the given key.
 
 BST-only operations:
 
@@ -53,6 +61,11 @@ BST-only operations:
 * `l key`/`left key`/`rotl key`/`rotleft key`/`rotatel key`/`rotateleft key`:
   Rotate-left the node containing the given key and its right child.
 
+Heap-only operations:
+
+* `dm`/`dmax`/`delm`/`delmax`/`deletemax`/`rm`/`remm`/`rmax`/`remmax`/`removemax`:
+  Delete the maximum key (the root).
+
 Each `key` can be an **integer** or a **Pokémon name** (up to Generation VIII).
 
 * If you enter a Pokémon name, it gets converted into the corresponding
@@ -61,7 +74,7 @@ Each `key` can be an **integer** or a **Pokémon name** (up to Generation VIII).
   we match the Pokémon with a name prefix of the smallest possible edit distance.
 * If you enter an integer outside the range [1, 905]
   (including zero or negative integers),
-  it gets treated as that integer,
+  the key gets treated as that integer,
   but drawn as the Pokémon whose National Pokédex number is the same modulo 905.
 
 You can also specify multiple keys for one operation, e.g., `aa 1 2 3 4`.

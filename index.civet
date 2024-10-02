@@ -140,6 +140,24 @@ class SpriteNode
             transParent.translateX!, transParent.translateY!
       .after =>
         done()
+  animParent(): Promise<void>
+    new Promise (done) =>
+      return done() unless @parent?
+      trans .= @g.transform()
+      transParent .= @parent.g.transform()
+      /* Up
+      @parentLine.plot
+        trans.translateX!, trans.translateY!
+        trans.translateX!, trans.translateY!
+      */
+      @parentLine.plot
+        transParent.translateX!, transParent.translateY!
+        transParent.translateX!, transParent.translateY!
+      @parentLine.animate(animDelay).opacity(1).plot
+        trans.translateX!, trans.translateY!
+        transParent.translateX!, transParent.translateY!
+      .after =>
+        done()
   remove(): void
     @g.remove()
     @parentLine.remove()
@@ -153,6 +171,17 @@ class SpriteNode
         @g.clear()
         @parentLine.plot 0, 0, 0, 0
         done()
+  hide(): Promise<void>
+    @parentLine.opacity 0
+    @g.opacity 0
+  fadeIn(skipLine?: boolean): Promise<void>
+    new Promise (done) =>
+      unless skipLine
+        @parentLine.animate(animDelay)
+        .opacity 1
+      @g.animate(animDelay)
+      .opacity 1
+      .after => done()
   eject(newKey: number): SpriteNode
     key .= @key
     @setKey newKey
@@ -555,38 +584,28 @@ class SpriteTree
     node
 
   animHeapAppend(key: number): Promise<SpriteNode>
-    let node: SpriteNode
-    let parentX: number, parentY: number
-    let newX: number, newY: number
-    if @empty()
-      node = @root
-      newX = newY = parentX = 0
-      parentY = -nodeSize
-    else
-      heap .= @heapArray()
-      index .= heap#
-      parent .= index %/ 2
-      direction .=
-        if index %% 2
-          'right' as const
+    node .= @heapAppend key
+    let newX = 0, newY = 0
+    parent .= node.parent
+    if parent?
+      newX =
+        if node is parent.left
+          parent.x! - xSpace / 2
         else
-          'left' as const
-      node = heap[parent]![direction]!
-      parentX = heap[parent]!.x!
-      parentY = heap[parent]!.y!
-      newX = parentX + (direction is 'left' ? -1 : 1) * xSpace/2
-      newY = parentY + ySpace
-
-    node.left = @newNode node
-    node.right = @newNode node
-    node.move parentX, parentY
-    node.setKey key
+          parent.x! + xSpace / 2
+      newY = parent.y! + ySpace
+    node.move newX, newY
+    node.hide()
     await node.loaded
     await.all [
-      node.animMove newX, newY
+      node.animParent()
+      node.fadeIn true
+    ]
+    console.log 'hi'
+    await.all [
       ...for n of @root.inorder() // animate make room for new node
-        continue if n is node
-        direction .= Math.sign n.x! - (newX + parentX) / 2
+        direction .= Math.sign n.x! - (newX + (parent?.x ?? 0)) / 2
+        direction = 0 if n is node
         n.animMove n.x! + direction * xSpace / 2, n.y!
     ]
     await @draw true

@@ -177,6 +177,7 @@ class SpriteTree
     @lineGroup.clear()
     @nodeGroup.clear()
     @root = @newNode()
+    @draw()
   empty(): boolean
     not @root.key?
 
@@ -403,6 +404,19 @@ class SpriteTree
     await @draw true
     return
 
+  // Force tree into a binary search tree
+  makeBST(): Promise<void>
+    keys .=
+      for node of @root.inorder()
+        node.key
+    sorted .= keys[..].sort (a, b) => a - b
+    return if JSON.stringify(keys) is JSON.stringify(sorted)
+    for node, i of @root.inorder()
+      node.setKey sorted[i]
+    await @draw()
+
+  // AVL
+
   // AVLify a node (specified by key) and its ancestors,
   // as used by AVL Insert and AVL Delete
   animAVL(key: number?): Promise<void>
@@ -450,7 +464,137 @@ class SpriteTree
     {node} .= result
     await @animAVL node.parent?.key
 
-type Mode = 'BST' | 'AVL'
+  // HEAPS
+
+  // BFS order of nodes, which is the array representation of the heap.
+  // 1-indexed via an empty 0th element.
+  heapArray(): (SpriteNode?)[]
+    queue: SpriteNode[] .= [@root]
+    nodes: (SpriteNode?)[] .= [,]  // 1-indexed
+    while queue#
+      node .= queue.shift()!
+      nodes.push node
+      queue.push node.left if node.left?.key?
+      queue.push node.right if node.right?.key?
+    nodes
+
+  // Force tree into a complete tree, then build
+  makeMaxHeap(): Promise<void>
+    nodes .= @heapArray()
+    for node, i of nodes
+      continue unless node?
+      if i > 1
+        node.parent = nodes[i %/ 2]
+      else
+        node.parent = undefined
+      node.left = nodes[2 * i] ?? @newNode node
+      node.right = nodes[2 * i + 1] ?? @newNode node
+    await @draw()
+    await new Promise (done) => setTimeout done, animDelay
+    await @maxHeapifyAll()
+
+  maxHeapifyAll(): Promise<void>
+    return if @empty()
+    nodes .= @heapArray()
+    for i of [nodes# - 1 .. 1]
+      await @animMaxHeapifyDown nodes[i]!
+    await @draw()
+
+  animHeapAppend(key: number): Promise<SpriteNode>
+    let node: SpriteNode
+    let parentX: number, parentY: number
+    let newX: number, newY: number
+    if @empty()
+      node = @root
+      newX = newY = parentX = 0
+      parentY = -nodeSize
+    else
+      heap .= @heapArray()
+      index .= heap#
+      parent .= index %/ 2
+      direction .=
+        if index %% 2
+          'right' as const
+        else
+          'left' as const
+      node = heap[parent]![direction]!
+      parentX = heap[parent]!.x!
+      parentY = heap[parent]!.y!
+      newX = parentX + (direction is 'left' ? -1 : 1) * xSpace/2
+      newY = parentY + ySpace
+
+    node.left = @newNode node
+    node.right = @newNode node
+    node.move parentX, parentY
+    node.setKey key
+    await node.loaded
+    await.all [
+      node.animMove newX, newY
+      ...for n of @root.inorder() // animate make room for new node
+        continue if n is node
+        direction .= Math.sign n.x! - (newX + parentX) / 2
+        n.animMove n.x! + direction * xSpace / 2, n.y!
+    ]
+    await @draw true
+    node
+
+  animSwap(a: SpriteNode, b: SpriteNode): Promise<void>
+    aOrig .= a.{x!,y!,key}
+    bOrig .= b.{x!,y!,key}
+    await.all [
+      a.animMove bOrig.x, bOrig.y, true
+      b.animMove aOrig.x, aOrig.y, true
+    ]
+    // Restore coordinates from before move
+    a.move aOrig.x, aOrig.y
+    b.move bOrig.x, bOrig.y
+    // Swap keys instead
+    a.setKey bOrig.key
+    b.setKey aOrig.key
+
+  animMaxHeapInsert(key: number): Promise<void>
+    node .= await @animHeapAppend key
+    await @animMaxHeapifyUp node
+    @draw()
+
+  animMaxHeapifyUp(node: SpriteNode): Promise<void>
+    while node?.parent?
+      break if node.key! <= node.parent.key!
+      await @animSwap node, node.parent
+      node = node.parent
+
+  animMaxHeapDeleteMax(): Promise<void>
+    return if @empty()
+    last .= @heapArray().-1!
+    await @animSwap @root, last
+
+    // Delete leaf
+    await last.fadeOut()
+    last.left = last.right = undefined
+    last.setKey undefined
+    await.all
+      for n of @root.inorder() // animate collapse space
+        continue if n is last
+        direction .= Math.sign n.x! - last.x!
+        n.animMove n.x! - direction * xSpace / 2, n.y!
+    await @draw true
+    await @animMaxHeapifyDown @root
+    @draw()
+
+  animMaxHeapifyDown(node: SpriteNode): Promise<void>
+    return unless node.key?
+    while node.left?.key?
+      break if node.key! >= node.left.key and (
+        not node.right?.key? or node.key! >= node.right.key
+      )
+      if node.right?.key? > node.left.key
+        await @animSwap node, node.right
+        node = node.right
+      else
+        await @animSwap node, node.left
+        node = node.left
+
+type Mode = 'BST' | 'AVL' | 'maxheap'
 
 function gui(): void
   svg := SVG().addTo '#app'
@@ -484,6 +628,9 @@ function gui(): void
       delete: T@animAVLDelete
       avlinsert: T@animAVLInsert
       avldelete: T@animAVLDelete
+    maxheap:
+      insert: T@animMaxHeapInsert
+      deletemax: (key) => T.animMaxHeapDeleteMax()
   aliases: Record<string, string> :=
     f: 'find'
     ins: 'insert'
@@ -494,6 +641,10 @@ function gui(): void
     d: 'delete'
     remove: 'delete'
     rem: 'delete'
+    delmax: 'deletemax'
+    dmax: 'deletemax'
+    remmax: 'deletemax'
+    rmax: 'deletemax'
     avladd: 'avlinsert'
     aa: 'avlinsert'
     avlins: 'avlinsert'
@@ -529,7 +680,7 @@ function gui(): void
     commandInput.disabled = false
     commandInput.focus()
 
-  function updateMode: void
+  function updateMode: Promise<void>
     newMode .= new FormData(document.querySelector('form')!).get('mode') as Mode
     commandInput.title =
       switch mode
@@ -537,19 +688,26 @@ function gui(): void
           "find/f, insert/ins/i/add/a, delete/del/d/remove/rem, rotateleft/rotl/l, rotateright/rotr/r, avladd/aa/avlins/ai, avldel/ad/avlrem, clear"
         when 'AVL'
           "find/f, insert/ins/i/add/a, delete/del/d/remove/rem, clear"
+        when 'maxheap'
+          "insert/ins/i/add/a, deletemax, delete/del/d/remove/rem, clear"
         else
           ''
     unless mode is newMode or T.empty()
-      start()
-      switch mode + newMode
-        when 'BSTAVL'
-          T.animAVLAll()
-        else
-          Promise.resolve()
-      .finally => finish()
-      commandInput.focus()
+      try
+        start()
+        switch newMode
+          when 'BST'
+            await T.makeBST()
+          when 'AVL'
+            await T.makeBST()
+            await T.animAVLAll()
+          when 'maxheap'
+            await T.makeMaxHeap()
+      finally
+        finish()
     mode = newMode
   updateMode()
+
   for each radio of document.querySelectorAll 'input[name="mode"]'
     radio.addEventListener 'input', updateMode
 
@@ -567,22 +725,24 @@ function gui(): void
     command[0] = command[0].toLowerCase()
     if command[0] is 'clear'
       T.clear()
-      T.draw()
       commandInput.value = command[1..].join ' '
       submit()
       return
-    return if command# < 2
-    let key: number
-    key = parseInt command[1]
-    if isNaN key
-      key = byName command[1]
-    if command# > 2
-      commandInput.value = [command[0], ...command[2..]].join ' '
-    else
-      commandInput.value = ''
-    start()
     cmd .= command[0]
     cmd = aliases[cmd] if cmd in aliases
+    key: number .= -1
+    if command# >= 2
+      key = parseInt command[1]
+      if isNaN key
+        key = byName command[1]
+      if command# > 2
+        commandInput.value = [command[0], ...command[2..]].join ' '
+      else
+        commandInput.value = ''
+    else
+      return unless cmd is 'deletemax'
+      commandInput.value = ''
+    start()
     (modeCommands[mode]?[cmd] ?? => Promise.resolve()) key
     .then =>
       finish()

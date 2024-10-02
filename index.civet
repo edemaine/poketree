@@ -187,11 +187,13 @@ class SpriteTree
     //  @nodeGroup.add node.g
     @root.computeSize()
     @root.computeHeight()
-    @root.layout @root.x ?? 0, @root.y ?? 0
+    @root.x ?= 0
+    @root.y ?= 0
+    @root.layout @root.x, @root.y
     xMin .= @root.x! - (@root.left?.size ?? 0) * xSpace - nodeSize
     xMax .= @root.x! + (@root.right?.size ?? 0) * xSpace + nodeSize
     yMin .= @root.y! - nodeSize
-    yMax .= @root.y! + (@root.height! + 1) * ySpace + nodeSize
+    yMax .= @root.y! + ((@root.height ?? 0) + 1) * ySpace + nodeSize
     width .= xMax - xMin
     height .= yMax - yMin
     oldBox .= @svg.viewbox()
@@ -220,6 +222,12 @@ class SpriteTree
         node = node.left!
       else
         node = node.right!
+
+  insert(key: number): void
+    node .= @find key
+    node.setKey key
+    node.left = @newNode node
+    node.right = @newNode node
 
   animFind(key: number): Promise<void>
     await @animInsert key, true
@@ -415,6 +423,19 @@ class SpriteTree
       node.setKey sorted[i]
     await @draw()
 
+  buildBST(keys: number[]): Promise<void>
+    @clear()
+    keys.sort (a, b) => a - b
+    tree .= this
+    function recurse(i, j)
+      return unless i < j
+      mid .= (i + j) %/ 2
+      tree.insert keys[mid]
+      recurse i, mid
+      recurse mid + 1, j
+    recurse 0, keys#
+    @draw()
+
   // AVL
 
   // AVLify a node (specified by key) and its ancestors,
@@ -499,6 +520,33 @@ class SpriteTree
     for i of [nodes# - 1 .. 1]
       await @animMaxHeapifyDown nodes[i]!
     await @draw()
+
+  buildMaxHeap(keys: number[]): Promise<void>
+    @clear()
+    for key of keys
+      @heapAppend key
+    await @draw()
+    await new Promise (done) => setTimeout done, animDelay
+    await @maxHeapifyAll()
+
+  heapAppend(key: number): SpriteNode
+    let node: SpriteNode
+    if @empty()
+      node = @root
+    else
+      heap .= @heapArray()
+      index .= heap#
+      parent .= index %/ 2
+      direction .=
+        if index %% 2
+          'right' as const
+        else
+          'left' as const
+      node = heap[parent]![direction]!
+    node.left = @newNode node
+    node.right = @newNode node
+    node.setKey key
+    node
 
   animHeapAppend(key: number): Promise<SpriteNode>
     let node: SpriteNode
@@ -622,6 +670,7 @@ function gui(): void
   mode: Mode .= 'BST'
   modeCommands: Record<Mode, Record<string, (key: number) => Promise<unknown>>> :=
     BST:
+      build: T@buildBST
       find: T@animFind
       insert: T@animInsert
       delete: T@animDelete
@@ -631,15 +680,19 @@ function gui(): void
       avlinsert: T@animAVLInsert
       avldelete: T@animAVLDelete
     AVL:
+      build: T@buildBST
       find: T@animFind
       insert: T@animAVLInsert
       delete: T@animAVLDelete
       avlinsert: T@animAVLInsert
       avldelete: T@animAVLDelete
     maxheap:
+      // @ts-ignore wrong argument type
+      build: T@buildMaxHeap
       insert: T@animMaxHeapInsert
       delete: T@animMaxHeapDelete
       deletemax: (key) => T.animMaxHeapDeleteMax()
+
   aliases: Record<string, string> :=
     f: 'find'
     ins: 'insert'
@@ -674,6 +727,7 @@ function gui(): void
     rotr: 'rotateright'
     right: 'rotateright'
     r: 'rotateright'
+    b: 'build'
 
   commandInput := document.querySelector('#command') as HTMLInputElement
   let submit: (e?: SubmitEvent) => void
@@ -697,11 +751,11 @@ function gui(): void
     commandInput.title =
       switch mode
         when 'BST'
-          "find/f, insert/ins/i/add/a, delete/del/d/remove/rem, rotateleft/rotl/l, rotateright/rotr/r, avladd/aa/avlins/ai, avldel/ad/avlrem, clear"
+          "find/f, insert/ins/i/add/a, delete/del/d/remove/rem, rotateleft/rotl/l, rotateright/rotr/r, avladd/aa/avlins/ai, avldel/ad/avlrem, build/b, clear"
         when 'AVL'
-          "find/f, insert/ins/i/add/a, delete/del/d/remove/rem, clear"
+          "find/f, insert/ins/i/add/a, delete/del/d/remove/rem, build/b, clear"
         when 'maxheap'
-          "insert/ins/i/add/a, deletemax/delmax/dmax/dm/removemax/rmax/rm, delete/del/d/remove/rem, clear"
+          "insert/ins/i/add/a, deletemax/delmax/dmax/dm/removemax/rmax/rm, delete/del/d/remove/rem, build/b, clear"
         else
           ''
     unless mode is newMode or T.empty()
@@ -734,31 +788,48 @@ function gui(): void
   function execute(commandString: string): void
     command .= commandString.split(/\s+/).filter &
     return unless command#
-    command[0] = command[0].toLowerCase()
-    if command[0] is 'clear'
-      T.clear()
-      commandInput.value = command[1..].join ' '
-      submit()
-      return
-    cmd .= command[0]
+
+    cmd .= command[0].toLowerCase()
     cmd = aliases[cmd] if cmd in aliases
-    key: number .= -1
-    if command# >= 2
-      key = parseInt command[1]
+
+    function parseKey(arg: string): number
+      key .= parseInt arg
       if isNaN key
-        key = byName command[1]
-      if command# > 2
-        commandInput.value = [command[0], ...command[2..]].join ' '
-      else
-        commandInput.value = ''
-    else
-      return unless cmd is 'deletemax'
-      commandInput.value = ''
+        key = byName arg
+      key
+
     start()
+    switch cmd
+      when 'clear'
+        T.clear()
+        commandInput.value = command[1..].join ' '
+        finish()
+        submit()
+        return
+      when 'deletemax'
+        await modeCommands[mode].deletemax? -1
+        commandInput.value = command[1..].join ' '
+        finish()
+        submit()
+        return
+      when 'build'
+        (modeCommands[mode].build as! (keys: number[]) => Promise<void>)
+          command[1..].map parseKey
+        finish()
+        commandInput.value = ''
+        return
+
+    // Remaining commands need one or more arguments
+    return finish() if command# < 2
+    key .= parseKey command[1]
     (modeCommands[mode]?[cmd] ?? => Promise.resolve()) key
     .then =>
       finish()
-      submit()
+      if command# > 2
+        commandInput.value = [command[0], ...command[2..]].join ' '
+        submit()
+      else
+        commandInput.value = ''
     .catch =>
       finish()
 

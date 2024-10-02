@@ -1,8 +1,9 @@
 # PokeTree: BSTs with Pokémon
 
 ***PokeTree*** is a web app for visually demonstrating and animating
-**[Binary Search Trees (BSTs)](https://en.wikipedia.org/wiki/Binary_search_tree)**
-and **[AVL trees](https://en.wikipedia.org/wiki/AVL_tree)**.
+**[Binary Search Trees (BSTs)](https://en.wikipedia.org/wiki/Binary_search_tree)**,
+**[AVL trees](https://en.wikipedia.org/wiki/AVL_tree)**, and
+**[binary heaps](https://en.wikipedia.org/wiki/Heap_(data_structure))**.
 
 ## [Try It Out!](https://edemaine.github.io/poketree/)
 

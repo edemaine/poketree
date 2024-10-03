@@ -26,6 +26,7 @@ class SpriteNode
   @(@tree: SpriteTree, @parent?: SpriteNode, key?: number?)
     @g = @tree.nodeGroup.group()
     @parentLine = @tree.lineGroup.line()
+    .opacity 0
     @setKey key
   computeHeight(): number
     @height =
@@ -102,10 +103,11 @@ class SpriteNode
   setParent(@parent: SpriteNode?): void
     @updateParentLine()
   updateParentLine(): void
-    @parentLine.opacity 1
     if @parent?
+      @parentLine.opacity 1
       @parentLine.plot @x!, @y!, @parent.x!, @parent.y!
     else
+      @parentLine.opacity 0
       @parentLine.plot @x!, @y!, @x!, @y!
   addClass(className: string): void
     @g.addClass className
@@ -132,6 +134,8 @@ class SpriteNode
     @
   animMove(@x: number, @y: number, skipLine?: boolean): Promise<void>
     new Promise (done) =>
+      if @parent? and not skipLine
+        @parentLine.opacity 1
       @g.animate(animDelay).transform
         translateX: @x
         translateY: @y
@@ -154,6 +158,7 @@ class SpriteNode
         trans.translateX!, trans.translateY!
         trans.translateX!, trans.translateY!
       */
+      @parentLine.opacity 1
       @parentLine.plot
         transParent.translateX!, transParent.translateY!
         transParent.translateX!, transParent.translateY!
@@ -175,7 +180,7 @@ class SpriteNode
         @g.clear()
         @parentLine.plot 0, 0, 0, 0
         done()
-  hide(): Promise<void>
+  hide(): void
     @parentLine.opacity 0
     @g.opacity 0
   fadeIn(skipLine?: boolean): Promise<void>

@@ -651,6 +651,7 @@ class SpriteTree
         n.animMove n.x! - direction * xSpace / 2, n.y!
     await @draw true
     await @animMaxHeapifyDown node
+    await @animMaxHeapifyUp node
     @draw()
 
   animMaxHeapDelete(key: number): Promise<void>

@@ -1,5 +1,5 @@
 { SVG, type Svg, type G, type Line, type Text } from @svgdotjs/svg.js
-{ urlFor, byName, toName } from ./pokedex.civet
+{ urlFor, byName, setStyle, toName, type Style } from ./pokedex.civet
 
 xSpace .= 80
 ySpace .= 100
@@ -78,6 +78,7 @@ class SpriteNode
     let loadComplete: =>
     @loaded = new Promise (loadComplete =)
     @g.image urlFor(@key), loadComplete!
+    .attr 'data-key', @key
     .size nodeSize, nodeSize
     .center 0, 0
     .add @g.element('title').words toName @key
@@ -797,6 +798,15 @@ function gui(): void
 
   for each radio of document.querySelectorAll 'input[name="mode"]'
     radio.addEventListener 'input', updateMode
+
+  for each radio of document.querySelectorAll 'input[name="style"]'
+    radio.addEventListener 'input', =>
+      setStyle new FormData(document.querySelector('form')!).get('style') as Style
+      for each image of document.querySelectorAll('image[data-key]') as NodeListOf<SVGImageElement>
+        key := Number image.dataset.key!
+        image.setAttribute 'href', urlFor key
+        console.log 'title', image.querySelector('title'), key, toName key
+        image.querySelector('title')?.innerHTML = toName key
 
   for toggle of ['size', 'height']
     document.querySelector(`#${toggle}`)!.addEventListener 'input', (e) =>

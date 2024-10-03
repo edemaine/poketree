@@ -1,11 +1,38 @@
-maxDex .= 905
+export type Style = '2D' | '3D'
+maxDex: Record<Style, number> :=
+  '2D': 905
+  '3D': 807
+
+export styles: Style[] := ['2D', '3D']
+style: Style .= '2D'
+
+export function setStyle(s: Style): void
+  return unless s is in styles
+  style = s
+
+function idMap(id: number): number
+  id = (id - 1) %% maxDex[style] + 1
+  if style is '3D'
+    id++ if id is 618 // Stunfisk missing sprite
+  id
 
 export function urlFor(id: number): string
-  id = (id - 1) %% maxDex + 1
-  `https://raw.githubusercontent.com/HybridShivam/Pokemon/master/assets/images/${id.toString().padStart 3, '0'}.png`
+  id = idMap id
+  switch style
+    when '2D'
+      `https://raw.githubusercontent.com/HybridShivam/Pokemon/master/assets/images/${id.toString().padStart 3, '0'}.png`
+    when '3D'
+      name .= natDex[id-1].toLowerCase()
+      .replace /\s/g, '_' // Nidoran F -> nidoran_f
+      .replace /^tapu_/g, 'tapu' // Tapu Koko -> tapukoko
+      .replace /&eacute;/g, 'e' // Flab&eacute;b&eacute; -> flabebe
+      .replace /'|\.$|: /g, '' // Mr. Mime -> mr._mime, Mime Jr. -> mime_jr, Type: Null -> typenull
+      `https://raw.githubusercontent.com/Senzo13/pokemon3d-image-resolver/refs/heads/main/assets/sprites/${name}.gif`
+    else
+      throw new Error `Unknown style: ${style}`
 
 export function toName(id: number): string
-  natDex[(id - 1) %% maxDex]
+  natDex[idMap(id)-1]
 
 export function byName(query: string): number
   query = query[0].toUpperCase() + query[1..].toLowerCase()
@@ -32,7 +59,7 @@ function editDistance(x: string, y: string): number
         d[i+1][j+1] = 1 + Math.min d[i+1][j], d[i][j+1], d[i][j]
   d[x#][y#]
 
-natDex := [
+export natDex := [
   "Bulbasaur"
   "Ivysaur"
   "Venusaur"
@@ -1058,4 +1085,4 @@ natDex := [
   "Iron Crown"
   "Terapagos"
   "Pecharunt"
-][0...maxDex]
+]

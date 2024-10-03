@@ -202,6 +202,11 @@ class SpriteNode
     [@x, other.x] = [other.x, @x]
     [@y, other.y] = [other.y, @y]
     [@key, other.key] = [other.key, @key]
+    [@size, other.size] = [other.size, @size]
+    [@height, other.height] = [other.height, @height]
+    [@sizeText, other.sizeText] = [other.sizeText, @sizeText]
+    [@heightText, other.heightText] = [other.heightText, @heightText]
+    [@loaded, other.loaded] = [other.loaded, @loaded]
 
 class SpriteTree
   svg: Svg

@@ -78,7 +78,8 @@ Each `key` can be an **integer** or a **Pokémon name** (up to Generation VIII).
   the key gets treated as that integer,
   but drawn as the Pokémon whose National Pokédex number is the same modulo 905.
 
-You can also specify multiple keys for one operation, e.g., `aa 1 2 3 4`.
+You can also specify multiple keys for one operation, e.g., `i 1 2 3 4`
+or `d 1,2,3,4`.
 
 ### Augmentations
 

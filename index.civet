@@ -819,7 +819,7 @@ function gui(): void
     animDelay = 6000 / speed
 
   function execute(commandString: string): void
-    command .= commandString.split(/\s+/).filter &
+    command .= commandString.split(/\s*,\s*|\s+/).filter &
     return unless command#
 
     cmd .= command[0].toLowerCase()

@@ -13,9 +13,11 @@ class SpriteNode
   right: SpriteNode?
   size: number?
   height: number?
+  index: number?
   parentLine: Line
   heightText: Text?
   sizeText: Text?
+  indexText: Text?
   loaded: Promise<void>?
 
   x: number?
@@ -99,6 +101,10 @@ class SpriteNode
       .attr 'x', +nodeSize * 0.6
       .attr 'y', 0
       .addClass 'size'
+      @indexText = @g.plain (@index ?? 0).toString()
+      .attr 'x', +nodeSize * 0.6
+      .attr 'y', 0
+      .addClass 'index'
     @updateParentLine()
   setParent(@parent: SpriteNode?): void
     @updateParentLine()
@@ -202,11 +208,16 @@ class SpriteNode
     [@x, other.x] = [other.x, @x]
     [@y, other.y] = [other.y, @y]
     [@key, other.key] = [other.key, @key]
-    [@size, other.size] = [other.size, @size]
-    [@height, other.height] = [other.height, @height]
+    [@loaded, other.loaded] = [other.loaded, @loaded]
     [@sizeText, other.sizeText] = [other.sizeText, @sizeText]
     [@heightText, other.heightText] = [other.heightText, @heightText]
-    [@loaded, other.loaded] = [other.loaded, @loaded]
+    [@indexText, other.indexText] = [other.indexText, @indexText]
+    @sizeText?.plain (@size ?? 1).toString()
+    @heightText?.plain (@height ?? 0).toString()
+    @indexText?.plain (@index ?? 0).toString()
+    other.sizeText?.plain (other.size ?? 1).toString()
+    other.heightText?.plain (other.height ?? 0).toString()
+    other.indexText?.plain (other.index ?? 0).toString()
 
 class SpriteTree
   svg: Svg
@@ -236,6 +247,7 @@ class SpriteTree
     //  @nodeGroup.add node.g
     @root.computeSize()
     @root.computeHeight()
+    @computeIndex()
     @root.x ?= 0
     @root.y ?= 0
     @root.layout @root.x, @root.y
@@ -547,6 +559,12 @@ class SpriteTree
       queue.push node.left if node.left?.key?
       queue.push node.right if node.right?.key?
     nodes
+  
+  computeIndex(): void
+    for each node, i of @heapArray()
+      continue unless node?
+      node.index = i
+      node.indexText?.plain i.toString()
 
   // Force tree into a complete tree, then build
   makeMaxHeap(): Promise<void>
@@ -820,7 +838,7 @@ function gui(): void
         image.setAttribute 'href', urlFor key
         image.querySelector('title')?.innerHTML = toName key
 
-  for toggle of ['size', 'height']
+  for toggle of ['size', 'height', 'index']
     document.querySelector(`#${toggle}`)!.addEventListener 'input', (e) =>
       document.documentElement.classList.toggle toggle,
         (e.currentTarget as HTMLInputElement).checked

@@ -1,8 +1,9 @@
 :root, input
   background: black
   color: white
-  --height-color: magenta
+  --height-color: #f8f
   --size-color: cyan
+  --index-color: yellow
 a, a:visited
   color: yellow
 a:hover, a:active
@@ -46,7 +47,11 @@ text
     dominant-baseline: middle
     fill: var(--height-color)
   &.size
+    dominant-baseline: middle
     fill: var(--size-color)
+  &.index
+    dominant-baseline: middle
+    fill: var(--index-color)
   font-family: sans-serif
   font-size: 32px
 g.bad
@@ -57,8 +62,12 @@ label.height
   color: var(--height-color)
 label.size
   color: var(--size-color)
+label.index
+  color: var(--index-color)
 
 :root:not(.height) text.height
   display: none
 :root:not(.size) text.size
+  display: none
+:root:not(.index) text.index
   display: none

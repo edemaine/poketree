@@ -93,6 +93,9 @@ You can use the checkboxes to toggle display of two properties next to each node
   i.e., number of descendants including the node itself.
   (Useful for illustrating sequence binary trees,
   which support accessing the *i*th node in traversal order.)
+* **Heap index** (yellow, right):
+  The 1-based index of the node in the heap array, when in heap mode
+  (and more generally, the 1-based BFS order of the node).
 
 ### Speed
 

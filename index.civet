@@ -78,6 +78,9 @@ class SpriteNode
     let loadComplete: =>
     @loaded = new Promise (loadComplete =)
     @g.image urlFor(@key), loadComplete!
+    .on 'error', (error) =>
+      console.log `Failed to load image for key ${@key} at ${urlFor @key}`
+      loadComplete()
     .attr 'data-key', @key
     .size nodeSize, nodeSize
     .center 0, 0

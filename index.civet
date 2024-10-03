@@ -602,7 +602,6 @@ class SpriteTree
       node.animParent()
       node.fadeIn true
     ]
-    console.log 'hi'
     await.all [
       ...for n of @root.inorder() // animate make room for new node
         direction .= Math.sign n.x! - (newX + (parent?.x ?? 0)) / 2
@@ -806,7 +805,6 @@ function gui(): void
       for each image of document.querySelectorAll('image[data-key]') as NodeListOf<SVGImageElement>
         key := Number image.dataset.key!
         image.setAttribute 'href', urlFor key
-        console.log 'title', image.querySelector('title'), key, toName key
         image.querySelector('title')?.innerHTML = toName key
 
   for toggle of ['size', 'height']

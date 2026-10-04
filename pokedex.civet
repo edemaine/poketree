@@ -20,13 +20,13 @@ export function urlFor(id: number): string
   id = idMap id
   switch style
     when '2D'
-      `https://raw.githubusercontent.com/HybridShivam/Pokemon/master/assets/images/${id.toString().padStart 3, '0'}.png`
+      `https://raw.githubusercontent.com/HybridShivam/Pokemon/master/assets/images/${id.toString().padStart 4, '0'}.png`
     when '3D'
       name .= natDex[id-1].toLowerCase()
       .replace /\s/g, '_' // Nidoran F -> nidoran_f
       .replace /^tapu_/g, 'tapu' // Tapu Koko -> tapukoko
       .replace /&eacute;/g, 'e' // Flab&eacute;b&eacute; -> flabebe
-      .replace /'|\.$|: /g, '' // Mr. Mime -> mr._mime, Mime Jr. -> mime_jr, Type: Null -> typenull
+      .replace /'|\.$|:_/g, '' // Mr. Mime -> mr._mime, Mime Jr. -> mime_jr, Type: Null -> typenull
       `https://raw.githubusercontent.com/Senzo13/pokemon3d-image-resolver/refs/heads/main/assets/sprites/${name}.gif`
     else
       throw new Error `Unknown style: ${style}`
